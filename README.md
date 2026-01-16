@@ -2,11 +2,12 @@
 
 MVP de um Livro de Ofertas (Order Book) para negociação de Vibranium.
 
-## Requisitos
-- Java 21
-- Maven 3.9+
+## JDK
+Este projeto requer Java 21.
 
-## Rodar local
-```bash
-mvn test
-mvn spring-boot:run
+### Windows (Scoop)
+```powershell
+scoop bucket add java
+scoop install temurin21-jdk
+java -version
+mvn -v

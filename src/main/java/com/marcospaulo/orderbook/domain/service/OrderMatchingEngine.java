@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.marcospaulo.orderbook.domain.model.Order;
 import com.marcospaulo.orderbook.domain.model.OrderBook;
+import com.marcospaulo.orderbook.domain.model.Side;
 import com.marcospaulo.orderbook.domain.model.Trade;
 import com.marcospaulo.orderbook.domain.model.exception.DomainException;
 import com.marcospaulo.orderbook.domain.model.vo.Quantity;
@@ -20,44 +21,69 @@ public final class OrderMatchingEngine {
     }
 
     /**
-     * Executa matching até não haver mais cruzamento (bestBid < bestAsk).
-     * Retorna a lista de trades gerados.
+     * Matching determinístico: incoming (taker) tenta cruzar com o livro.
+     * Se sobrar quantidade, o incoming (parcial) deve ser adicionado ao book pela
+     * camada application.
      */
-    public List<Trade> match(OrderBook book) {
+    public List<Trade> matchIncoming(Order incoming, OrderBook book) {
+        if (incoming == null)
+            throw new DomainException("incoming order must not be null");
         if (book == null)
             throw new DomainException("orderBook must not be null");
 
         List<Trade> trades = new ArrayList<>();
 
-        while (true) {
+        if (incoming.side() == Side.BUY) {
+            // cruza contra asks enquanto bestAsk <= incoming.price
+            while (!incoming.isFilled()) {
+                Order bestAsk = book.bestAsk().orElse(null);
+                if (bestAsk == null)
+                    break;
+                if (bestAsk.price().compareTo(incoming.price()) > 0)
+                    break;
+
+                bestAsk = book.asks().pollBestOrder().orElseThrow();
+
+                long executed = Math.min(incoming.remainingQty().value(), bestAsk.remainingQty().value());
+                Quantity executedQty = Quantity.ofPositive(executed);
+
+                var tradePrice = pricingPolicy.determinePrice(incoming, bestAsk, RestingSide.SELL);
+
+                incoming.fill(executedQty);
+                bestAsk.fill(executedQty);
+
+                trades.add(Trade.create(incoming.id(), bestAsk.id(), tradePrice, executedQty));
+
+                if (!bestAsk.isFilled()) {
+                    book.asks().putBackAtFront(bestAsk);
+                }
+            }
+
+            return trades;
+        }
+
+        // SELL: cruza contra bids enquanto bestBid >= incoming.price
+        while (!incoming.isFilled()) {
             Order bestBid = book.bestBid().orElse(null);
-            Order bestAsk = book.bestAsk().orElse(null);
-
-            if (bestBid == null || bestAsk == null)
+            if (bestBid == null)
                 break;
-
-            if (bestBid.price().compareTo(bestAsk.price()) < 0)
+            if (bestBid.price().compareTo(incoming.price()) < 0)
                 break;
 
             bestBid = book.bids().pollBestOrder().orElseThrow();
-            bestAsk = book.asks().pollBestOrder().orElseThrow();
 
-            long executed = Math.min(bestBid.remainingQty().value(), bestAsk.remainingQty().value());
+            long executed = Math.min(incoming.remainingQty().value(), bestBid.remainingQty().value());
             Quantity executedQty = Quantity.ofPositive(executed);
 
-            var tradePrice = pricingPolicy.determinePrice(bestBid, bestAsk, RestingSide.SELL);
+            var tradePrice = pricingPolicy.determinePrice(bestBid, incoming, RestingSide.BUY);
 
+            incoming.fill(executedQty);
             bestBid.fill(executedQty);
-            bestAsk.fill(executedQty);
 
-            trades.add(Trade.create(bestBid.id(), bestAsk.id(), tradePrice, executedQty));
+            trades.add(Trade.create(bestBid.id(), incoming.id(), tradePrice, executedQty));
 
             if (!bestBid.isFilled()) {
                 book.bids().putBackAtFront(bestBid);
-            }
-
-            if (!bestAsk.isFilled()) {
-                book.asks().putBackAtFront(bestAsk);
             }
         }
 

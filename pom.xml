@@ -59,6 +59,11 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>net.bytebuddy</groupId>
+			<artifactId>byte-buddy-agent</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -85,6 +90,37 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.6.1</version>
+				<executions>
+					<execution>
+					<id>copy-byte-buddy-agent</id>
+					<phase>process-test-classes</phase>
+					<goals>
+						<goal>copy</goal>
+					</goals>
+					<configuration>
+						<artifactItems>
+						<artifactItem>
+							<groupId>net.bytebuddy</groupId>
+							<artifactId>byte-buddy-agent</artifactId>
+							<outputDirectory>${project.build.directory}</outputDirectory>
+							<destFileName>byte-buddy-agent.jar</destFileName>
+						</artifactItem>
+						</artifactItems>
+					</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-javaagent:${project.build.directory}/byte-buddy-agent.jar</argLine>
 				</configuration>
 			</plugin>
 		</plugins>

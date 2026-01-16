@@ -21,6 +21,7 @@ import com.marcospaulo.orderbook.adapters.out.memory.InMemoryWalletRepository;
 import com.marcospaulo.orderbook.application.command.Command;
 import com.marcospaulo.orderbook.application.command.CommandContext;
 import com.marcospaulo.orderbook.application.exception.BackpressureException;
+import com.marcospaulo.orderbook.application.ports.out.InMemoryOrderRepository;
 
 public class OrderBookCommandEngineTests {
 
@@ -29,7 +30,8 @@ public class OrderBookCommandEngineTests {
         CommandContext ctx = new CommandContext(
                 new InMemoryOrderBookRepository(),
                 new InMemoryWalletRepository(),
-                new InMemoryTradeRepository());
+                new InMemoryTradeRepository(),
+                new InMemoryOrderRepository());
 
         try (OrderBookCommandEngine engine = new OrderBookCommandEngine(ctx, 10_000)) {
 
@@ -59,7 +61,8 @@ public class OrderBookCommandEngineTests {
         CommandContext ctx = new CommandContext(
                 new InMemoryOrderBookRepository(),
                 new InMemoryWalletRepository(),
-                new InMemoryTradeRepository());
+                new InMemoryTradeRepository(),
+                new InMemoryOrderRepository());
 
         try (OrderBookCommandEngine engine = new OrderBookCommandEngine(ctx, 1)) {
             CompletableFuture<Void> first = engine.submit(c -> {

@@ -19,53 +19,39 @@ import com.marcospaulo.orderbook.domain.policy.RestingOrderPricingPolicy;
 public class OrderMatchingEngineTests {
 
     @Test
-    void noCrossingProducesNoTrades() {
+    void buyIncomingMatchesAsksUpToLimit() {
         OrderBook book = new OrderBook();
-        book.add(Order.create(uid(), Side.BUY, Price.of(new BigDecimal("9.00")), Quantity.ofPositive(10)));
-        book.add(Order.create(uid(), Side.SELL, Price.of(new BigDecimal("10.00")), Quantity.ofPositive(10)));
+        book.add(Order.create(uid(), Side.SELL, Price.of(new BigDecimal("9.00")), Quantity.ofPositive(4)));
+
+        Order incoming = Order.create(uid(), Side.BUY, Price.of(new BigDecimal("10.00")), Quantity.ofPositive(10));
 
         var engine = new OrderMatchingEngine(new RestingOrderPricingPolicy());
-        var trades = engine.match(book);
-
-        assertTrue(trades.isEmpty());
-    }
-
-    @Test
-    void crossingProducesTradeWithMinQuantity() {
-        OrderBook book = new OrderBook();
-        Order bid = Order.create(uid(), Side.BUY, Price.of(new BigDecimal("10.00")), Quantity.ofPositive(10));
-        Order ask = Order.create(uid(), Side.SELL, Price.of(new BigDecimal("9.00")), Quantity.ofPositive(4));
-
-        book.add(bid);
-        book.add(ask);
-
-        var engine = new OrderMatchingEngine(new RestingOrderPricingPolicy());
-        var trades = engine.match(book);
+        var trades = engine.matchIncoming(incoming, book);
 
         assertEquals(1, trades.size());
         assertEquals(4, trades.get(0).quantity().value());
+        assertEquals("9.00", trades.get(0).price().toString());
 
-        assertEquals(6, bid.remainingQty().value());
-        assertEquals(0, ask.remainingQty().value());
-        assertTrue(book.bestBid().isPresent());
+        assertEquals(6, incoming.remainingQty().value());
         assertTrue(book.bestAsk().isEmpty());
     }
 
     @Test
-    void multipleTradesAcrossLevels() {
+    void sellIncomingMatchesBidsDownToLimit() {
         OrderBook book = new OrderBook();
-
-        book.add(Order.create(uid(), Side.BUY, Price.of(new BigDecimal("10.00")), Quantity.ofPositive(5)));
         book.add(Order.create(uid(), Side.BUY, Price.of(new BigDecimal("10.00")), Quantity.ofPositive(5)));
 
-        book.add(Order.create(uid(), Side.SELL, Price.of(new BigDecimal("9.00")), Quantity.ofPositive(6)));
+        Order incoming = Order.create(uid(), Side.SELL, Price.of(new BigDecimal("9.00")), Quantity.ofPositive(2));
 
         var engine = new OrderMatchingEngine(new RestingOrderPricingPolicy());
-        var trades = engine.match(book);
+        var trades = engine.matchIncoming(incoming, book);
 
-        assertEquals(2, trades.size());
-        assertEquals(5, trades.get(0).quantity().value());
-        assertEquals(1, trades.get(1).quantity().value());
+        assertEquals(1, trades.size());
+        assertEquals(2, trades.get(0).quantity().value());
+        assertEquals("10.00", trades.get(0).price().toString());
+
+        assertEquals(0, incoming.remainingQty().value());
+        assertTrue(incoming.isFilled());
     }
 
     private static UserId uid() {
