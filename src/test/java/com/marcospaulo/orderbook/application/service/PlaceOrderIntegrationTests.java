@@ -64,9 +64,8 @@ public class PlaceOrderIntegrationTests {
             // Seller vendeu 3 vib a 10.00 => +30 cash, -3 vib reservado
             assertEquals(new BigDecimal("30.00"), seller.cash().available());
 
-            // O seller reservou 5 vib para a ordem aberta:
-            // available vira 5.00 e reserved 5.00 no momento do SELL.
-            // Após vender 3: reserved vira 2.00 e available permanece 5.00.
+            // Seller: reservou 5 vib (available=5, reserved=5). Vendeu 3 vib:
+            // available permanece 5, reserved cai para 2, cash sobe para 30.
             assertEquals(new BigDecimal("5.00"), seller.vibranium().available());
             assertEquals(new BigDecimal("2.00"), seller.vibranium().reserved());
 
