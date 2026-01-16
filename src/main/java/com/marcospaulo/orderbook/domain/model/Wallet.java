@@ -110,18 +110,32 @@ public final class Wallet {
         cash().creditAvailable(earned);
     }
 
-    private static <T> T requireNonNull(T v, String field) {
-        if (v == null)
-            throw new DomainException(field + " must not be null");
-        return v;
-    }
-
     private static BigDecimal nz(BigDecimal v) {
         if (v == null)
             return BigDecimal.ZERO;
         if (v.signum() < 0)
             throw new DomainException("initial balance must be >= 0");
         return v;
+    }
+
+    public void depositCash(BigDecimal amount) {
+        requireNonNull(amount, "amount");
+        if (amount.signum() < 0)
+            throw new DomainException("cash deposit must be >= 0");
+        balances.get(Asset.CASH).creditAvailable(amount);
+    }
+
+    public void depositVibranium(BigDecimal amount) {
+        requireNonNull(amount, "amount");
+        if (amount.signum() < 0)
+            throw new DomainException("vibranium deposit must be >= 0");
+        balances.get(Asset.VIBRANIUM).creditAvailable(amount);
+    }
+
+    private static <T> T requireNonNull(T value, String name) {
+        if (value == null)
+            throw new DomainException(name + " must not be null");
+        return value;
     }
 
 }
